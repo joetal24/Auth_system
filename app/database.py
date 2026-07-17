@@ -2,6 +2,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from app.config import settings
+from app.models.base import Base
 
 engine = create_async_engine(
     settings.DATABASE_URL,
@@ -12,11 +13,9 @@ async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
 
 async def init_db():
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception:
-        pass  # ponytail: silent startup, add health check logging if needed
+    # ponytail: create_all for dev; replace with Alembic migrations before prod
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 async def close_db():
