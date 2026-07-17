@@ -8,7 +8,6 @@ from app.exceptions import (
 from app.models.user import User
 from app.services.token import create_tokens, verify_refresh_token, revoke_session
 from app.core.security import verify_password, get_password_hash
-from app.core.cache import blacklist_token
 
 
 async def register(
@@ -59,7 +58,6 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> dict:
     return tokens
 
 
-async def logout(db: AsyncSession, refresh_token: str, access_jti: str) -> None:
-    session, payload = await verify_refresh_token(db, refresh_token)
+async def logout(db: AsyncSession, refresh_token: str) -> None:
+    session, _ = await verify_refresh_token(db, refresh_token)
     await revoke_session(db, session)
-    await blacklist_token(access_jti, 900)
