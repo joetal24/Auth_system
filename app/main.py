@@ -3,22 +3,22 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-#from app.api.v1.router import api_router
+from app.api.v1.router import api_router
 from app.config import settings
 from app.database import init_db, close_db
+from app.exceptions import exception_handlers
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()           # startup: verify DB connection
-    # init_redis() here later
-    yield                     # app runs
-    await close_db()          # shutdown: dispose engine
-    # close_redis() here later
+    await init_db()
+    yield
+    await close_db()
 
 app = FastAPI(
     title=settings.APP_NAME,
     lifespan=lifespan,
+    exception_handlers=exception_handlers,
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url=None,
 )
@@ -31,8 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-#from app.api.v1.router import api_router
-#app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn
