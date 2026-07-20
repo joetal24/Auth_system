@@ -1,22 +1,21 @@
-from datetime import datetime, timezone,timedelta
+import hashlib
+from datetime import datetime, timezone, timedelta
 
 from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from passlib.context import CryptContext
-
-
-pwd_context = CryptContext(schemes=["bcrypt"])
-
 
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    get_password_hash,
 )
 from app.exceptions import UnauthorizedException
 from app.models.session import Session
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 async def create_tokens(
@@ -29,7 +28,7 @@ async def create_tokens(
 
     session = Session(
         user_id=user_id,
-        refresh_token_hash=get_password_hash(refresh_token),
+        refresh_token_hash=_hash_token(refresh_token),
         device_info=device_info,
         expires_at=datetime.now(timezone.utc) + timedelta(days=7),
     )
@@ -55,13 +54,15 @@ async def verify_refresh_token(db: AsyncSession, token: str) -> tuple[Session, d
     except JWTError:
         raise UnauthorizedException("Invalid or expired refresh token")
     result = await db.execute(
-        select(Session).where(Session.is_revoked == False)
+        select(Session).where(
+            Session.is_revoked == False,
+            Session.refresh_token_hash == _hash_token(token),
+        )
     )
-    sessions = result.scalars().all()
-    for session in sessions:
-        if pwd_context.verify(token, session.refresh_token_hash):
-            return session, payload
-    raise UnauthorizedException("Refresh token not found or revoked")
+    session = result.scalar_one_or_none()
+    if not session:
+        raise UnauthorizedException("Refresh token not found or revoked")
+    return session, payload
 
 
 async def revoke_session(db: AsyncSession, session: Session) -> None:

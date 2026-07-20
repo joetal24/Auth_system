@@ -18,6 +18,9 @@ Production-ready authentication API built with FastAPI, SQLAlchemy, JWT, and Pos
 # Install dependencies
 uv sync
 
+# Activate virtual environment
+source .venv/bin/activate
+
 # Copy env config
 cp .env.example .env
 # Edit .env with your database credentials
@@ -25,8 +28,11 @@ cp .env.example .env
 # Run migrations
 uv run alembic upgrade head
 
-# Start server
-uv run uvicorn app.main:app --reload
+# Start server (development with auto-reload)
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Or start server (production)
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 Server starts at `http://localhost:8000`.
