@@ -37,15 +37,33 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 Server starts at `http://localhost:8000`.
 
+### Docker
+
+```bash
+# Start all services (app + Postgres + Redis)
+docker compose up -d
+
+# Run database migrations
+docker compose exec app uv run alembic upgrade head
+
+# View logs
+docker compose logs -f app
+
+# Stop everything
+docker compose down
+```
+
 ## API Endpoints
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/api/v1/health` | Health check | None |
-| POST | `/api/v1/auth/register` | Register user | None |
-| POST | `/api/v1/auth/login` | Login | None |
-| POST | `/api/v1/auth/refresh` | Refresh tokens | None |
+| POST | `/api/v1/auth/register` | Register user | Rate-limited (5/min) |
+| POST | `/api/v1/auth/login` | Login | Rate-limited (10/min) |
+| POST | `/api/v1/auth/refresh` | Refresh tokens | Rate-limited (10/min) |
 | POST | `/api/v1/auth/logout` | Logout | Bearer |
+| POST | `/api/v1/auth/forgot-password` | Request password reset | Rate-limited (3/5min) |
+| POST | `/api/v1/auth/reset-password` | Reset password with token | None |
 | GET | `/api/v1/users/me` | Current user | Bearer |
 | GET | `/api/v1/users` | List users | Admin |
 | GET | `/api/v1/users/{id}` | Get user | Bearer |
@@ -73,7 +91,9 @@ app/
 1. `POST /auth/register` or `/auth/login` returns `access_token` (15min) + `refresh_token` (7 days)
 2. Access token goes in `Authorization: Bearer <token>` header
 3. When access expires, `POST /auth/refresh` with refresh token in body gets a new pair
-4. `POST /auth/logout` revokes the refresh token server-side
+4. `POST /auth/logout` revokes the refresh token server-side + blacklists the access JTI
+5. `POST /auth/forgot-password` generates a reset token (stored in Redis, 15min TTL); returns token in body when `DEBUG=true`
+6. `POST /auth/reset-password` accepts token + new password to change credentials
 
 ## Environment Variables
 
