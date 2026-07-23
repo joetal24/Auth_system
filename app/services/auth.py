@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,8 +8,9 @@ from app.exceptions import (
     UnauthorizedException,
 )
 from app.models.user import User
+from app.core.cache import blacklist_token
+from app.core.security import verify_password, get_password_hash, decode_token
 from app.services.token import create_tokens, verify_refresh_token, revoke_session
-from app.core.security import verify_password, get_password_hash
 
 
 async def register(
@@ -58,6 +61,12 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> dict:
     return tokens
 
 
-async def logout(db: AsyncSession, refresh_token: str) -> None:
+async def logout(db: AsyncSession, access_token: str, refresh_token: str) -> None:
+    payload = decode_token(access_token)
+    jti = payload.get("jti", "")
+    exp = payload.get("exp", 0)
+    if jti:
+        ttl = max(exp - int(datetime.now(timezone.utc).timestamp()), 0)
+        await blacklist_token(jti, ttl)
     session, _ = await verify_refresh_token(db, refresh_token)
     await revoke_session(db, session)

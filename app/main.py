@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.config import settings
 from app.database import init_db, close_db
+from app.core.cache import close_redis
 from app.exceptions import exception_handlers
 
 
@@ -14,6 +15,7 @@ async def lifespan(app: FastAPI):
     await init_db()
     yield
     await close_db()
+    await close_redis()
 
 app = FastAPI(
     title=settings.APP_NAME,

@@ -10,6 +10,8 @@ from app.main import app
 from app.models.base import Base
 from app.config import settings
 
+settings.REDIS_URL = "redis://localhost:1/0"
+
 TEST_DB_URL = settings.DATABASE_URL + "_test"
 engine = create_async_engine(TEST_DB_URL, poolclass=NullPool)
 TestSession = async_sessionmaker(engine, expire_on_commit=False)

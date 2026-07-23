@@ -5,6 +5,7 @@ from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import is_token_blacklisted
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -45,6 +46,8 @@ async def verify_access_token(token: str) -> dict:
         raise UnauthorizedException("Invalid or expired access token")
     if payload.get("type") == "refresh":
         raise UnauthorizedException("Invalid token type")
+    if await is_token_blacklisted(payload.get("jti", "")):
+        raise UnauthorizedException("Token has been revoked")
     return payload
 
 
