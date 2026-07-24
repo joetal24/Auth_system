@@ -58,7 +58,7 @@ async def login(
 
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(password, user.hashed_password):
+    if not user or not user.hashed_password or not verify_password(password, user.hashed_password):
         raise UnauthorizedException("Invalid email or password")
     if not user.is_active:
         raise UnauthorizedException("Account is deactivated")

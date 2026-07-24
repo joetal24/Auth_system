@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env",extra="ignore")
 
     APP_NAME : str = "Auth System"
+    APP_URL : str = "http://localhost:8000"
     DEBUG : bool = False
 
     #database
@@ -30,6 +31,12 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = ""
     REQUIRE_EMAIL_VERIFICATION: bool = True
+
+    #OAuth
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: str = ""
 
     #CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:8000"]

@@ -22,6 +22,7 @@ from app.services import auth as auth_service
 from app.services import password_reset as password_reset_service
 from app.services import email_verification as email_verification_service
 from app.services import two_factor as two_factor_service
+from app.services import oauth as oauth_service
 from app.services.user import get_user_by_email
 from app.models.user import User
 
@@ -136,3 +137,29 @@ async def disable_2fa(
 ):
     await two_factor_service.disable_2fa(db, current_user, body.password, body.totp_code, body.backup_code)
     return {"message": "2FA disabled successfully"}
+
+
+@router.get("/oauth/google")
+async def oauth_google():
+    return {"url": oauth_service.google_auth_url()}
+
+
+@router.get("/oauth/google/callback")
+async def oauth_google_callback(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+):
+    return await oauth_service.oauth_login(db, "google", code)
+
+
+@router.get("/oauth/github")
+async def oauth_github():
+    return {"url": oauth_service.github_auth_url()}
+
+
+@router.get("/oauth/github/callback")
+async def oauth_github_callback(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+):
+    return await oauth_service.oauth_login(db, "github", code)
