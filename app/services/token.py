@@ -24,7 +24,6 @@ async def create_tokens(
     user_id: str,
     device_info: str | None = None,
 ) -> dict:
-    access_token = create_access_token({"sub": user_id})
     refresh_token = create_refresh_token({"sub": user_id})
 
     session = Session(
@@ -35,6 +34,9 @@ async def create_tokens(
     )
     db.add(session)
     await db.commit()
+    await db.refresh(session)
+
+    access_token = create_access_token({"sub": user_id, "sid": str(session.id)})
 
     return {"access_token": access_token, "refresh_token": refresh_token}
 

@@ -23,7 +23,9 @@ from app.services import password_reset as password_reset_service
 from app.services import email_verification as email_verification_service
 from app.services import two_factor as two_factor_service
 from app.services import oauth as oauth_service
+from app.services import session_mgmt as session_service
 from app.services.user import get_user_by_email
+from app.core.security import decode_token
 from app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -163,3 +165,35 @@ async def oauth_github_callback(
     db: AsyncSession = Depends(get_db),
 ):
     return await oauth_service.oauth_login(db, "github", code)
+
+
+@router.get("/sessions")
+async def list_sessions(
+    token: str = Depends(oauth2_scheme),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    sid = decode_token(token).get("sid", "")
+    sessions = await session_service.get_user_sessions(db, str(current_user.id), sid)
+    return {"sessions": sessions}
+
+
+@router.delete("/sessions/{session_id}")
+async def revoke_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await session_service.revoke_session_by_id(db, session_id, str(current_user.id))
+    return {"message": "Session revoked"}
+
+
+@router.post("/sessions/revoke-others")
+async def revoke_other_sessions(
+    token: str = Depends(oauth2_scheme),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    sid = decode_token(token).get("sid", "")
+    await session_service.revoke_other_sessions(db, sid, str(current_user.id))
+    return {"message": "Other sessions revoked"}
