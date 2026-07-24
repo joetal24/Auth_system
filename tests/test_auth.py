@@ -1,6 +1,15 @@
 import pytest
 from httpx import AsyncClient
 
+from app.core.cache import increment_login_attempts
+from app.config import settings
+
+
+@pytest.mark.asyncio
+async def test_lockout_disabled_without_redis():
+    count = await increment_login_attempts("lockout@test.com", settings.MAX_LOGIN_ATTEMPTS, settings.LOGIN_LOCKOUT_MINUTES)
+    assert count == 0
+
 
 @pytest.mark.asyncio
 async def test_register(client: AsyncClient):

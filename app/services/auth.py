@@ -10,7 +10,7 @@ from app.exceptions import (
     UnauthorizedException,
 )
 from app.models.user import User
-from app.core.cache import blacklist_token
+from app.core.cache import blacklist_token, increment_login_attempts, reset_login_attempts
 from app.core.security import verify_password, get_password_hash, decode_token
 from app.services.token import create_tokens, verify_refresh_token, revoke_session
 from app.services.email_verification import send_verification_email
@@ -46,6 +46,10 @@ async def login(
     password: str,
     device_info: str | None = None,
 ) -> dict:
+    attempts = await increment_login_attempts(email, settings.MAX_LOGIN_ATTEMPTS, settings.LOGIN_LOCKOUT_MINUTES)
+    if attempts > settings.MAX_LOGIN_ATTEMPTS:
+        raise ForbiddenException(f"Account locked for {settings.LOGIN_LOCKOUT_MINUTES} minutes")
+
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if not user or not verify_password(password, user.hashed_password):
@@ -55,6 +59,7 @@ async def login(
     if settings.REQUIRE_EMAIL_VERIFICATION and not user.is_verified:
         raise ForbiddenException("Email not verified")
 
+    await reset_login_attempts(email)
     tokens = await create_tokens(db, str(user.id), device_info)
     return {"user": user, **tokens}
 

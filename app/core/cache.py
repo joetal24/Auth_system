@@ -64,3 +64,20 @@ async def delete_value(key: str) -> None:
     await r.delete(key)
 
 
+async def increment_login_attempts(email: str, max_attempts: int, window_minutes: int) -> int:
+    r = await get_redis()
+    if r is None:
+        return 0
+    key = f"lockout:{email}"
+    count = await r.incr(key)
+    await r.expire(key, window_minutes * 60)
+    return count
+
+
+async def reset_login_attempts(email: str) -> None:
+    r = await get_redis()
+    if r is None:
+        return
+    await r.delete(f"lockout:{email}")
+
+

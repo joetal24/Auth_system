@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30 
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    #Lockout
+    MAX_LOGIN_ATTEMPTS: int = 5
+    LOGIN_LOCKOUT_MINUTES: int = 15
+
     #Email
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
