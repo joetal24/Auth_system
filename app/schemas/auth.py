@@ -49,6 +49,10 @@ class ResetPasswordRequest(BaseModel):
         return v
 
 
+class ResendVerificationRequest(BaseModel):
+    email: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str

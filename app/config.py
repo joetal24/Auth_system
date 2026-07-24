@@ -19,6 +19,14 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30 
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    #Email
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    REQUIRE_EMAIL_VERIFICATION: bool = True
+
     #CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:8000"]
 

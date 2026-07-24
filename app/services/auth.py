@@ -3,14 +3,17 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.exceptions import (
     ConflictException,
+    ForbiddenException,
     UnauthorizedException,
 )
 from app.models.user import User
 from app.core.cache import blacklist_token
 from app.core.security import verify_password, get_password_hash, decode_token
 from app.services.token import create_tokens, verify_refresh_token, revoke_session
+from app.services.email_verification import send_verification_email
 
 
 async def register(
@@ -32,6 +35,8 @@ async def register(
     await db.refresh(user)
 
     tokens = await create_tokens(db, str(user.id), device_info)
+    if settings.REQUIRE_EMAIL_VERIFICATION:
+        await send_verification_email(db, user)
     return {"user": user, **tokens}
 
 
@@ -47,6 +52,8 @@ async def login(
         raise UnauthorizedException("Invalid email or password")
     if not user.is_active:
         raise UnauthorizedException("Account is deactivated")
+    if settings.REQUIRE_EMAIL_VERIFICATION and not user.is_verified:
+        raise ForbiddenException("Email not verified")
 
     tokens = await create_tokens(db, str(user.id), device_info)
     return {"user": user, **tokens}

@@ -12,9 +12,12 @@ from app.schemas.auth import (
     LogoutRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    ResendVerificationRequest,
 )
 from app.services import auth as auth_service
 from app.services import password_reset as password_reset_service
+from app.services import email_verification as email_verification_service
+from app.services.user import get_user_by_email
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -77,3 +80,24 @@ async def reset_password(
 ):
     await password_reset_service.reset_password(db, body.token, body.new_password)
     return {"message": "Password reset successful"}
+
+
+@router.get("/verify-email")
+async def verify_email(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    await email_verification_service.confirm_verification(token, db)
+    return {"message": "Email verified successfully"}
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    body: ResendVerificationRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(RateLimiter(max_requests=3, window_seconds=300)),
+):
+    user = await get_user_by_email(db, body.email)
+    if user and not user.is_verified:
+        await email_verification_service.send_verification_email(db, user)
+    return {"message": "Verification email sent if account exists"}

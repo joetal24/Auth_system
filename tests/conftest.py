@@ -11,6 +11,7 @@ from app.models.base import Base
 from app.config import settings
 
 settings.REDIS_URL = "redis://localhost:1/0"
+settings.REQUIRE_EMAIL_VERIFICATION = False
 
 TEST_DB_URL = settings.DATABASE_URL + "_test"
 engine = create_async_engine(TEST_DB_URL, poolclass=NullPool)
@@ -38,6 +39,12 @@ async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 app.dependency_overrides[get_db] = override_get_db
+
+
+@pytest_asyncio.fixture
+async def db_session() -> AsyncSession:
+    async with TestSession() as session:
+        yield session
 
 
 @pytest_asyncio.fixture
