@@ -23,6 +23,8 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+    totp_code: str | None = None
+    backup_code: str | None = None
 
 
 class RefreshRequest(BaseModel):
@@ -47,6 +49,22 @@ class ResetPasswordRequest(BaseModel):
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
         return v
+
+
+class Enable2FAResponse(BaseModel):
+    secret: str
+    uri: str
+    backup_codes: list[str]
+
+
+class Verify2FARequest(BaseModel):
+    totp_code: str
+
+
+class Disable2FARequest(BaseModel):
+    password: str
+    totp_code: str | None = None
+    backup_code: str | None = None
 
 
 class ResendVerificationRequest(BaseModel):

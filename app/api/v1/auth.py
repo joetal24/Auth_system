@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.rate_limit import RateLimiter
 from app.database import get_db
+from app.dependencies import get_current_user
 from app.schemas.auth import (
     RegisterRequest,
     LoginRequest,
@@ -13,11 +14,16 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     ResetPasswordRequest,
     ResendVerificationRequest,
+    Enable2FAResponse,
+    Verify2FARequest,
+    Disable2FARequest,
 )
 from app.services import auth as auth_service
 from app.services import password_reset as password_reset_service
 from app.services import email_verification as email_verification_service
+from app.services import two_factor as two_factor_service
 from app.services.user import get_user_by_email
+from app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -39,7 +45,7 @@ async def login(
     db: AsyncSession = Depends(get_db),
     _: None = Depends(RateLimiter(max_requests=10, window_seconds=60)),
 ):
-    return await auth_service.login(db, body.email, body.password)
+    return await auth_service.login(db, body.email, body.password, totp_code=body.totp_code, backup_code=body.backup_code)
 
 
 @router.post("/refresh")
@@ -101,3 +107,32 @@ async def resend_verification(
     if user and not user.is_verified:
         await email_verification_service.send_verification_email(db, user)
     return {"message": "Verification email sent if account exists"}
+
+
+@router.post("/2fa/enable", response_model=Enable2FAResponse)
+async def enable_2fa(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await two_factor_service.enable_2fa(db, current_user)
+    return result
+
+
+@router.post("/2fa/verify")
+async def verify_2fa(
+    body: Verify2FARequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    await two_factor_service.verify_2fa_setup(db, current_user, body.totp_code)
+    return {"message": "2FA enabled successfully"}
+
+
+@router.post("/2fa/disable")
+async def disable_2fa(
+    body: Disable2FARequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    await two_factor_service.disable_2fa(db, current_user, body.password, body.totp_code, body.backup_code)
+    return {"message": "2FA disabled successfully"}

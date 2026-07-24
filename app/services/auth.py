@@ -9,11 +9,15 @@ from app.exceptions import (
     ForbiddenException,
     UnauthorizedException,
 )
+from sqlalchemy import select, update
+
+from app.models.backup_code import BackupCode
 from app.models.user import User
 from app.core.cache import blacklist_token, increment_login_attempts, reset_login_attempts
 from app.core.security import verify_password, get_password_hash, decode_token
 from app.services.token import create_tokens, verify_refresh_token, revoke_session
 from app.services.email_verification import send_verification_email
+from app.services.two_factor import verify_totp, verify_backup_code
 
 
 async def register(
@@ -45,6 +49,8 @@ async def login(
     email: str,
     password: str,
     device_info: str | None = None,
+    totp_code: str | None = None,
+    backup_code: str | None = None,
 ) -> dict:
     attempts = await increment_login_attempts(email, settings.MAX_LOGIN_ATTEMPTS, settings.LOGIN_LOCKOUT_MINUTES)
     if attempts > settings.MAX_LOGIN_ATTEMPTS:
@@ -58,6 +64,28 @@ async def login(
         raise UnauthorizedException("Account is deactivated")
     if settings.REQUIRE_EMAIL_VERIFICATION and not user.is_verified:
         raise ForbiddenException("Email not verified")
+
+    if user.is_2fa_enabled:
+        if backup_code:
+            result = await db.execute(
+                select(BackupCode).where(
+                    BackupCode.user_id == str(user.id),
+                    BackupCode.is_used == False,
+                )
+            )
+            matched = None
+            for bc in result.scalars().all():
+                if verify_backup_code(backup_code, bc.hashed_code):
+                    matched = bc
+                    break
+            if not matched:
+                raise ForbiddenException("Invalid or already used backup code")
+            matched.is_used = True
+            await db.commit()
+        elif not totp_code or not verify_totp(user.totp_secret, totp_code):
+            raise ForbiddenException("TOTP code required or invalid")
+        elif verify_totp(user.totp_secret, totp_code):
+            pass
 
     await reset_login_attempts(email)
     tokens = await create_tokens(db, str(user.id), device_info)

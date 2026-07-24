@@ -22,6 +22,7 @@ class UserRead(BaseModel):
     email: str
     is_active: bool
     is_verified: bool
+    is_2fa_enabled: bool
     role_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
