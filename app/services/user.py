@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import NotFoundException
@@ -7,8 +8,10 @@ from app.schemas.user import UserUpdate
 
 
 async def get_user(db: AsyncSession, user_id: str) -> User:
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    result = await db.execute(
+        select(User).where(User.id == user_id).options(joinedload(User.role))
+    )
+    user = result.unique().scalar_one_or_none()
     if not user:
         raise NotFoundException("User not found")
     return user
