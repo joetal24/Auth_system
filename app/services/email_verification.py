@@ -9,6 +9,7 @@ from app.core.cache import set_value, get_value, delete_value
 from app.exceptions import UnauthorizedException
 from app.models.user import User
 from app.services.email import send_email, build_verification_email
+from app.services.audit import log as audit_log
 
 logger = logging.getLogger(__name__)
 
@@ -59,3 +60,4 @@ async def confirm_verification(token: str, db: AsyncSession) -> None:
     user.is_verified = True
     await db.commit()
     await delete_value(f"{VERIFY_PREFIX}{token}")
+    await audit_log(db, user_id, "email.verify")

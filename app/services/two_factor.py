@@ -10,6 +10,7 @@ from app.exceptions import ForbiddenException, UnauthorizedException
 from app.models.backup_code import BackupCode
 from app.models.user import User
 from app.core.security import verify_password
+from app.services.audit import log as audit_log
 
 
 def _get_totp(secret: str) -> pyotp.TOTP:
@@ -62,6 +63,7 @@ async def verify_2fa_setup(db: AsyncSession, user: User, code: str) -> None:
         raise ForbiddenException("Invalid TOTP code")
     user.is_2fa_enabled = True
     await db.commit()
+    await audit_log(db, str(user.id), "2fa.enable")
 
 
 async def disable_2fa(db: AsyncSession, user: User, password: str, totp_code: str | None, backup_code: str | None) -> None:
@@ -93,3 +95,4 @@ async def disable_2fa(db: AsyncSession, user: User, password: str, totp_code: st
     for bc in result.scalars().all():
         await db.delete(bc)
     await db.commit()
+    await audit_log(db, str(user.id), "2fa.disable")

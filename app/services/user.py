@@ -1,3 +1,5 @@
+import asyncio
+
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -5,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.exceptions import NotFoundException
 from app.models.user import User
 from app.schemas.user import UserUpdate
+from app.services.webhook import dispatch as dispatch_webhook
+from app.services.audit import log as audit_log
 
 
 async def get_user(db: AsyncSession, user_id: str) -> User:
@@ -45,3 +49,5 @@ async def deactivate_user(db: AsyncSession, user_id: str) -> None:
     user = await get_user(db, user_id)
     user.is_active = False
     await db.commit()
+    await audit_log(db, user_id, "user.deactivate")
+    asyncio.ensure_future(dispatch_webhook("user.deactivated", {"id": user_id, "email": user.email}))

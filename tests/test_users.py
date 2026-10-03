@@ -11,10 +11,12 @@ from app.services.token import create_tokens
 
 
 async def _make_admin(db: AsyncSession) -> str:
-    role = Role(name="admin", description="Administrator")
-    db.add(role)
-    await db.commit()
-    await db.refresh(role)
+    result = await db.execute(select(Role).where(Role.name == "admin"))
+    role = result.scalar_one_or_none()
+    if not role:
+        role = Role(name="admin", description="Administrator")
+        db.add(role)
+        await db.commit()
 
     user = User(
         email="admin@example.com",

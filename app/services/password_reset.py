@@ -7,6 +7,7 @@ from app.core.cache import set_value, get_value, delete_value
 from app.core.security import get_password_hash
 from app.exceptions import NotFoundException, UnauthorizedException
 from app.models.user import User
+from app.services.audit import log as audit_log
 
 RESET_PREFIX = "pwdreset:"
 RESET_TTL = 900  # 15 minutes
@@ -20,6 +21,7 @@ async def forgot_password(db: AsyncSession, email: str) -> str:
 
     token = secrets.token_urlsafe(32)
     await set_value(f"{RESET_PREFIX}{token}", str(user.id), RESET_TTL)
+    await audit_log(db, str(user.id), "password.forgot")
     return token
 
 
@@ -36,3 +38,4 @@ async def reset_password(db: AsyncSession, token: str, new_password: str) -> Non
     user.hashed_password = get_password_hash(new_password)
     await db.commit()
     await delete_value(f"{RESET_PREFIX}{token}")
+    await audit_log(db, user_id, "password.reset")

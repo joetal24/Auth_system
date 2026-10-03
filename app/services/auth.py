@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import asyncio
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +20,8 @@ from app.core.security import verify_password, get_password_hash, decode_token
 from app.services.token import create_tokens, verify_refresh_token, revoke_session
 from app.services.email_verification import send_verification_email
 from app.services.two_factor import verify_totp, verify_backup_code
+from app.services.webhook import dispatch as dispatch_webhook
+from app.services.audit import log as audit_log
 
 
 async def register(
@@ -41,6 +45,8 @@ async def register(
     tokens = await create_tokens(db, str(user.id), device_info)
     if settings.REQUIRE_EMAIL_VERIFICATION:
         await send_verification_email(db, user)
+    asyncio.ensure_future(dispatch_webhook("user.created", {"id": str(user.id), "email": user.email}))
+    await audit_log(db, str(user.id), "user.register", {"email": user.email})
     return {"user": user, **tokens}
 
 
@@ -89,6 +95,8 @@ async def login(
 
     await reset_login_attempts(email)
     tokens = await create_tokens(db, str(user.id), device_info)
+    asyncio.ensure_future(dispatch_webhook("user.login", {"id": str(user.id), "email": user.email}))
+    await audit_log(db, str(user.id), "user.login", {"email": user.email})
     return {"user": user, **tokens}
 
 
@@ -98,6 +106,7 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> dict:
 
     user_id = payload.get("sub")
     tokens = await create_tokens(db, user_id, session.device_info)
+    await audit_log(db, user_id, "token.refresh")
     return tokens
 
 
@@ -110,3 +119,4 @@ async def logout(db: AsyncSession, access_token: str, refresh_token: str) -> Non
         await blacklist_token(jti, ttl)
     session, _ = await verify_refresh_token(db, refresh_token)
     await revoke_session(db, session)
+    await audit_log(db, session.user_id, "user.logout")

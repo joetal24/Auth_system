@@ -17,6 +17,8 @@ from app.schemas.auth import (
     Enable2FAResponse,
     Verify2FARequest,
     Disable2FARequest,
+    CreateApiKeyRequest,
+    CreateApiKeyResponse,
 )
 from app.services import auth as auth_service
 from app.services import password_reset as password_reset_service
@@ -24,7 +26,9 @@ from app.services import email_verification as email_verification_service
 from app.services import two_factor as two_factor_service
 from app.services import oauth as oauth_service
 from app.services import session_mgmt as session_service
+from app.services import api_key as api_key_service
 from app.services.user import get_user_by_email
+from app.core.security import decode_token
 from app.core.security import decode_token
 from app.models.user import User
 
@@ -197,3 +201,31 @@ async def revoke_other_sessions(
     sid = decode_token(token).get("sid", "")
     await session_service.revoke_other_sessions(db, sid, str(current_user.id))
     return {"message": "Other sessions revoked"}
+
+
+@router.post("/api-keys", response_model=CreateApiKeyResponse)
+async def create_api_key(
+    body: CreateApiKeyRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await api_key_service.create_api_key(db, str(current_user.id), body.name, body.expires_in_days)
+
+
+@router.get("/api-keys")
+async def list_api_keys(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    keys = await api_key_service.list_api_keys(db, str(current_user.id))
+    return {"api_keys": keys}
+
+
+@router.delete("/api-keys/{key_id}")
+async def revoke_api_key(
+    key_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await api_key_service.revoke_api_key(db, key_id, str(current_user.id))
+    return {"message": "API key revoked"}

@@ -75,3 +75,17 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+
+
+class CreateApiKeyRequest(BaseModel):
+    name: str
+    expires_in_days: int | None = None
+
+
+class CreateApiKeyResponse(BaseModel):
+    id: str
+    name: str
+    key: str
+    key_prefix: str
+    created_at: str
+    expires_at: str | None

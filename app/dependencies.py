@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.exceptions import ForbiddenException, UnauthorizedException
+from app.models.user import User
+from app.services.api_key import verify_api_key
 from app.services.token import verify_access_token
 from app.services.user import get_user
 
@@ -14,6 +16,15 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ):
+    if token.startswith("sk_"):
+        key = await verify_api_key(db, token)
+        if key is None:
+            raise UnauthorizedException("Invalid or expired API key")
+        user = await get_user(db, key.user_id)
+        if not user.is_active:
+            raise UnauthorizedException("Account is deactivated")
+        return user
+
     payload = await verify_access_token(token)
     user = await get_user(db, payload.get("sub"))
     if not user.is_active:

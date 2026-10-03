@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import NotFoundException
 from app.models.session import Session
+from app.services.audit import log as audit_log
 
 
 async def get_user_sessions(db: AsyncSession, user_id: str, current_session_id: str) -> list[dict]:
@@ -30,6 +31,7 @@ async def revoke_session_by_id(db: AsyncSession, session_id: str, user_id: str) 
         raise NotFoundException("Session not found")
     session.is_revoked = True
     await db.commit()
+    await audit_log(db, user_id, "session.revoke", {"session_id": session_id})
 
 
 async def revoke_other_sessions(db: AsyncSession, current_session_id: str, user_id: str) -> None:
@@ -40,3 +42,4 @@ async def revoke_other_sessions(db: AsyncSession, current_session_id: str, user_
         if str(s.id) != current_session_id:
             s.is_revoked = True
     await db.commit()
+    await audit_log(db, user_id, "session.revoke_others")
